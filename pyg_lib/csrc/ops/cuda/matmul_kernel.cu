@@ -94,7 +94,7 @@ void run_grouped_gemm(const at::TensorList input,
   int64_t workspace_bytes = GemmGrouped::get_workspace_size(args);
   at::Tensor workspace =
     at::empty({workspace_bytes},
-      at::TensorOptions().dtype(at::kByte).device(out[0].device()).pinned_memory(true));
+      at::TensorOptions().dtype(at::kByte).device(out[0].device()));
   auto status =
       gemm.initialize(args, workspace.data_ptr(), at::cuda::getCurrentCUDAStream());
   TORCH_CHECK(status == cutlass::Status::kSuccess, "GroupedGEMM init failed");
