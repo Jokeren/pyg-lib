@@ -93,10 +93,10 @@ void run_grouped_gemm(const at::TensorList input,
   GemmGrouped gemm;
   int64_t workspace_bytes = GemmGrouped::get_workspace_size(args);
   at::Tensor workspace =
-    at::empty({workspace_bytes},
-      at::TensorOptions().dtype(at::kByte).device(out[0].device()));
-  auto status =
-      gemm.initialize(args, workspace.data_ptr(), at::cuda::getCurrentCUDAStream());
+      at::empty({workspace_bytes},
+                at::TensorOptions().dtype(at::kByte).device(out[0].device()));
+  auto status = gemm.initialize(args, workspace.data_ptr(),
+                                at::cuda::getCurrentCUDAStream());
   TORCH_CHECK(status == cutlass::Status::kSuccess, "GroupedGEMM init failed");
   status = gemm.run(at::cuda::getCurrentCUDAStream());
   TORCH_CHECK(status == cutlass::Status::kSuccess, "GroupedGEMM run failed");
@@ -156,7 +156,7 @@ void grouped_matmul_out_kernel(const at::TensorList input,
         cutlass::gemm::threadblock::                   // Swizzling Operator
         GemmIdentityThreadblockSwizzle<8>,             //
         2,
-        cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute        // Stages
+        cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute  // Stages
         >::GemmKernel;
     run_grouped_gemm<GemmKernel_Volta>(input, other, out, segment);
   } else {
@@ -192,9 +192,9 @@ void grouped_matmul_out_kernel(const at::TensorList input,
                   float, 1, float, float>,                   //
               cutlass::gemm::threadblock::        // Swizzling Operator
               GemmIdentityThreadblockSwizzle<8>,  //
-              3,                                   // Stages
-              cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute
-              >::GemmKernel;
+              3,                                  // Stages
+              cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute>::
+              GemmKernel;
       int grouped_shared_mem =
           shared_memory_for_kernel<DefaultGemmKernel_TF32>();
       if (grouped_shared_mem < props.sharedMemPerBlockOptin) {
@@ -225,9 +225,9 @@ void grouped_matmul_out_kernel(const at::TensorList input,
                     float, 1, float, float>,                   //
                 cutlass::gemm::threadblock::        // Swizzling Operator
                 GemmIdentityThreadblockSwizzle<8>,  //
-                3,                                   // Stages
-                cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute
-                >::GemmKernel;
+                3,                                  // Stages
+                cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute>::
+                GemmKernel;
         run_grouped_gemm<SmallGemmKernel_TF32>(input, other, out, segment);
       }
     } else {
@@ -254,9 +254,9 @@ void grouped_matmul_out_kernel(const at::TensorList input,
                   float, 1, float, float>,                   //
               cutlass::gemm::threadblock::        // Swizzling Operator
               GemmIdentityThreadblockSwizzle<8>,  //
-              3,                                   // Stages
-              cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute
-              >::GemmKernel;
+              3,                                  // Stages
+              cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute>::
+              GemmKernel;
       int grouped_shared_mem =
           shared_memory_for_kernel<DefaultGemmKernel_FP32>();
       if (grouped_shared_mem < props.sharedMemPerBlockOptin) {
@@ -287,9 +287,9 @@ void grouped_matmul_out_kernel(const at::TensorList input,
                     float, 1, float, float>,                   //
                 cutlass::gemm::threadblock::        // Swizzling Operator
                 GemmIdentityThreadblockSwizzle<8>,  //
-                3,                                   // Stages
-                cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute
-                >::GemmKernel;
+                3,                                  // Stages
+                cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute>::
+                GemmKernel;
         run_grouped_gemm<SmallGemmKernel_FP32>(input, other, out, segment);
       }
     }
