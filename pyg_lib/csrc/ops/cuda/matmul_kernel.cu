@@ -46,9 +46,9 @@ void run_grouped_gemm(const at::TensorList input,
 
   // Set arguments into gemm_args from input args
   for (size_t i = 0; i < num_matrices; ++i) {
-    auto new_in = input[i].contiguous();
-    auto new_other = other[i].contiguous();
-    auto new_out = out[i].contiguous();
+    auto new_in = input[i];
+    auto new_other = other[i];
+    auto new_out = out[i];
     auto m = new_in.size(0), k = new_other.size((int)(segment)),
          n = new_out.size(1);
 
@@ -93,10 +93,10 @@ void run_grouped_gemm(const at::TensorList input,
   GemmGrouped gemm;
   int64_t workspace_bytes = GemmGrouped::get_workspace_size(args);
   at::Tensor workspace =
-    at::empty({workspace_bytes},
-      at::TensorOptions().dtype(at::kByte).device(out[0].device()));
-  auto status =
-      gemm.initialize(args, workspace.data_ptr(), at::cuda::getCurrentCUDAStream());
+      at::empty({workspace_bytes},
+                at::TensorOptions().dtype(at::kByte).device(out[0].device()));
+  auto status = gemm.initialize(args, workspace.data_ptr(),
+                                at::cuda::getCurrentCUDAStream());
   TORCH_CHECK(status == cutlass::Status::kSuccess, "GroupedGEMM init failed");
   status = gemm.run(at::cuda::getCurrentCUDAStream());
   TORCH_CHECK(status == cutlass::Status::kSuccess, "GroupedGEMM run failed");
@@ -156,7 +156,7 @@ void grouped_matmul_out_kernel(const at::TensorList input,
         cutlass::gemm::threadblock::                   // Swizzling Operator
         GemmIdentityThreadblockSwizzle<8>,             //
         2,
-        cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute        // Stages
+        cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute  // Stages
         >::GemmKernel;
     run_grouped_gemm<GemmKernel_Volta>(input, other, out, segment);
   } else {
@@ -192,9 +192,9 @@ void grouped_matmul_out_kernel(const at::TensorList input,
                   float, 1, float, float>,                   //
               cutlass::gemm::threadblock::        // Swizzling Operator
               GemmIdentityThreadblockSwizzle<8>,  //
-              3,                                   // Stages
-              cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute
-              >::GemmKernel;
+              3,                                  // Stages
+              cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute>::
+              GemmKernel;
       int grouped_shared_mem =
           shared_memory_for_kernel<DefaultGemmKernel_TF32>();
       if (grouped_shared_mem < props.sharedMemPerBlockOptin) {
@@ -225,9 +225,9 @@ void grouped_matmul_out_kernel(const at::TensorList input,
                     float, 1, float, float>,                   //
                 cutlass::gemm::threadblock::        // Swizzling Operator
                 GemmIdentityThreadblockSwizzle<8>,  //
-                3,                                   // Stages
-                cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute
-                >::GemmKernel;
+                3,                                  // Stages
+                cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute>::
+                GemmKernel;
         run_grouped_gemm<SmallGemmKernel_TF32>(input, other, out, segment);
       }
     } else {
@@ -254,9 +254,9 @@ void grouped_matmul_out_kernel(const at::TensorList input,
                   float, 1, float, float>,                   //
               cutlass::gemm::threadblock::        // Swizzling Operator
               GemmIdentityThreadblockSwizzle<8>,  //
-              3,                                   // Stages
-              cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute
-              >::GemmKernel;
+              3,                                  // Stages
+              cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute>::
+              GemmKernel;
       int grouped_shared_mem =
           shared_memory_for_kernel<DefaultGemmKernel_FP32>();
       if (grouped_shared_mem < props.sharedMemPerBlockOptin) {
@@ -287,9 +287,9 @@ void grouped_matmul_out_kernel(const at::TensorList input,
                     float, 1, float, float>,                   //
                 cutlass::gemm::threadblock::        // Swizzling Operator
                 GemmIdentityThreadblockSwizzle<8>,  //
-                3,                                   // Stages
-                cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute
-                >::GemmKernel;
+                3,                                  // Stages
+                cutlass::gemm::kernel::GroupScheduleMode::kHostPrecompute>::
+                GemmKernel;
         run_grouped_gemm<SmallGemmKernel_FP32>(input, other, out, segment);
       }
     }
@@ -299,9 +299,14 @@ void grouped_matmul_out_kernel(const at::TensorList input,
 std::vector<at::Tensor> grouped_matmul_kernel(const at::TensorList input,
                                               const at::TensorList other) {
   std::vector<at::Tensor> out(input.size());
-  for (size_t i = 0; i < input.size(); ++i)
+  std::vector<at::Tensor> input_contiguous(input.size());
+  std::vector<at::Tensor> other_contiguous(other.size());
+  for (size_t i = 0; i < input.size(); ++i) {
+    input_contiguous[i] = input[i].contiguous();
+    other_contiguous[i] = other[i].contiguous();
     out[i] = input[i].new_empty({input[i].size(0), other[i].size(-1)});
-  grouped_matmul_out_kernel(input, other, out, false);
+  }
+  grouped_matmul_out_kernel(input_contiguous, other_contiguous, out, false);
 
   return out;
 }
